@@ -2,7 +2,9 @@
 
 # Update the package list
 sudo apt-get update
-
+# Set hostname for master node
+sudo hostnamectl set-hostname master-node
+bash 
 # Install Docker
 sudo apt-get install -y docker.io
 
@@ -42,9 +44,7 @@ sudo echo "net.bridge.bridge-nf-call-iptables = 1" >> /etc/sysctl.d/kubernetes.c
 sudo echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/kubernetes.conf
 sudo sysctl --system
 
-# Set hostname for master node
-sudo hostnamectl set-hostname master-node
-bash 
+
 
 # Set cgroup driver for kubelet
 sudo echo "KUBELET_EXTRA_ARGS=--cgroup-driver=cgroupfs" >> /etc/default/kubelet
