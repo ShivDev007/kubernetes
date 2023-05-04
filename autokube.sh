@@ -65,7 +65,7 @@ sudo bash -c 'cat <<EOF >> /etc/docker/daemon.json
   },
   "storage-driver": "overlay2"
 }
-EOF'
+EOF
 
 # Reload systemd again
 sudo systemctl daemon-reload
