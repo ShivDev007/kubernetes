@@ -86,5 +86,5 @@ sudo systemctl restart containerd.service
 
 # Join worker nodes to the cluster
 echo "Run the kubeadm join command on worker nodes to join them to the cluster."
-# sudo kubeadm join <master-node-ip>:6443 --token abcdef.1234567890abcdef --discovery-token-ca-cert-hash sha256:1234..cdef --node-name worker-node
+echo " sudo kubeadm join <master-node>:6443 --token abcdef.1234567890abcdef --discovery-token-ca-cert-hash sha256:1234..cdef --node-name worker-node"
 
