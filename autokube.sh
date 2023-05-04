@@ -44,6 +44,7 @@ sudo sysctl --system
 
 # Set hostname for master node
 sudo hostnamectl set-hostname master-node
+bash 
 
 # Set cgroup driver for kubelet
 sudo echo "KUBELET_EXTRA_ARGS=--cgroup-driver=cgroupfs" >> /etc/default/kubelet
