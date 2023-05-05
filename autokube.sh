@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Update the package list
-sudo apt-get update
+sudo apt-get update -y 
 # Set hostname for master node
 sudo hostnamectl set-hostname master-node
-bash 
+sudo bash 
 # Install Docker
 sudo apt-get install -y docker.io
 
