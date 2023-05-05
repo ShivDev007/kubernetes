@@ -44,7 +44,10 @@ sudo sysctl --system
 
 # Set hostname for master node
 sudo hostnamectl set-hostname master-node
-bash 
+sudo sed -i "s/127.0.1.1.*/127.0.1.1\tmaster-node/g" /etc/hosts
+sudo sed -i "s/master-node/master-node/g" /etc/kubernetes/kubeadm-config.yaml
+sudo sed -i "s/master-node/master-node/g" $HOME/.kube/config
+
 
 # Set cgroup driver for kubelet
 sudo echo "KUBELET_EXTRA_ARGS=--cgroup-driver=cgroupfs" >> /etc/default/kubelet
