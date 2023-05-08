@@ -1,99 +1,54 @@
 #!/bin/bash
 
-# Update the package list
-sudo apt-get update
+# Set hostname
+hostnamectl set-hostname k8s_master
 
-# Install Docker
-sudo apt-get install -y docker.io
+# Refresh the session
+exec bash
 
-# Enable Docker service
-sudo systemctl enable docker
+# Update OS
+apt update
 
-# Add Kubernetes GPG key and repository
+# Install Kubernetes helper package
+apt install apt-transport-https curl -y
+
+# Install and set up containerd
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt update
+apt install containerd.io -y
+mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+sed -i 's/^# SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+systemctl restart containerd
+
+# Install Kubernetes helper packages
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+apt update
+apt install kubeadm kubelet kubectl kubernetes-cni -y
 
-# Update the package list again
-sudo apt-get update
+# Disable swap
+swapoff -a
 
-# Install Kubernetes components
-sudo apt-get install -y kubeadm kubelet kubectl
+# Enable bridge network
+modprobe br_netfilter
+sysctl -w net.ipv4.ip_forward=1
 
-# Prevent Kubernetes components from being automatically updated
-sudo apt-mark hold kubeadm kubelet kubectl
+# Pull Kubernetes images
+kubeadm config images pull
 
-# Disable swap memory
-sudo swapoff -a
-sudo sed -i '/ swap / s/^/#/' /etc/fstab
+# Initialize Kubernetes cluster master plane
+kubeadm init --pod-network-cidr=10.244.0.0/16
 
-# Load overlay and br_netfilter modules
-echo "overlay" | sudo tee /etc/modules-load.d/containerd.conf
-echo "br_netfilter" | sudo tee -a /etc/modules-load.d/containerd.conf
-sudo modprobe overlay
-sudo modprobe br_netfilter
-
-# Set kernel parameters for Kubernetes networking
-cat <<EOF | sudo tee /etc/sysctl.d/kubernetes.conf
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-net.ipv4.ip_forward = 1
-EOF
-sudo sysctl --system
-
-# Set hostname for master node
-sudo hostnamectl set-hostname master-node
-sudo sed -i "s/127.0.1.1.*/127.0.1.1\tmaster-node/g" /etc/hosts
-
-# Set cgroup driver for kubelet
-echo 'KUBELET_EXTRA_ARGS=--cgroup-driver=systemd' | sudo tee /etc/default/kubelet
-
-# Configure Docker to use systemd as the cgroup driver
-sudo mkdir -p /etc/docker
-cat <<EOF | sudo tee /etc/docker/daemon.json
-{
-  "exec-opts": ["native.cgroupdriver=systemd"],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "100m"
-  },
-  "storage-driver": "overlay2"
-}
-EOF'
-
-# Reload systemd
-sudo systemctl daemon-reload
-
-# Restart services
-sudo systemctl restart kubelet docker
-
-# Set fail-swap-on=false for kubelet
-sudo mkdir -p /etc/systemd/system/kubelet.service.d/
-cat <<EOF | sudo tee /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-[Service]
-Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false"
-EOF'
-
-# Reload systemd for the final time
-sudo systemctl daemon-reload
-
-# Initialize the control plane
-sudo kubeadm init --control-plane-endpoint=$(hostname -i) --upload-certs
-
-# Set up the Kubernetes config file
+# Configure kubectl
 mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
 
-# Install Flannel network plugin
-kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+# Install Flannel network
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/v0.20.2/Documentation/kube-flannel.yml
 
-# Taint the nodes
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-
-# Stop the AppArmor service
-sudo systemctl stop apparmor
-
-# Restart the containerd service
-sudo systemctl restart containerd.service
-
-echo "Done. Now run the kubeadm join command on worker nodes to join them to the cluster."
+# Check nodes
+kubectl get nodes -o wide
